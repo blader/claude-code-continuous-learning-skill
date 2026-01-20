@@ -2,12 +2,12 @@
 name: claudeception
 description: |
   Claudeception is a continuous learning system that extracts reusable knowledge from work sessions.
-  Triggers: (1) /claudeception command to review session learnings, (2) "save this as a skill"
-  or "extract a skill from this", (3) "what did we learn?", (4) After any task involving
-  non-obvious debugging, workarounds, or trial-and-error discovery. Creates new Claude Code
-  skills when valuable, reusable knowledge is identified.
+  Always asks for user confirmation before creating any skill. Triggers: (1) /claudeception command
+  to review session learnings, (2) "save this as a skill" or "extract a skill from this",
+  (3) "what did we learn?", (4) After any task involving non-obvious debugging, workarounds,
+  or trial-and-error discovery. Identifies valuable knowledge and requests approval before saving.
 author: Claude Code
-version: 4.0.0
+version: 4.1.0
 allowed-tools:
   - Read
   - Write
@@ -28,6 +28,20 @@ A continuous learning system that extracts reusable knowledge from work sessions
 ## Core Principle
 
 Continuously evaluate whether current work contains extractable knowledge worth preserving. Be selective—not every task produces a skill.
+
+## User Confirmation Required
+
+**IMPORTANT**: Never create a skill without explicit user approval. Before writing any skill file:
+
+1. Identify the extractable knowledge
+2. Present a brief summary to the user:
+   - What knowledge was identified
+   - Proposed skill name
+   - Why it's worth preserving
+3. Ask: "Would you like me to create a skill for this?"
+4. Only proceed if the user confirms
+
+This ensures users maintain control over their skill library and prevents unwanted skill creation.
 
 ## When to Extract
 
@@ -106,7 +120,25 @@ description: |
   in root but not packages. Covers Lerna, Turborepo, npm workspaces.
 ```
 
-### Step 5: Save the Skill
+### Step 5: Request User Confirmation
+
+Before creating the skill, present a summary and ask for approval:
+
+```
+I identified extractable knowledge:
+
+**Topic**: [brief description]
+**Proposed skill**: `[skill-name]`
+**Why**: [1-2 sentence justification]
+
+Would you like me to create this skill?
+```
+
+**Only proceed if the user confirms.** If declined, do not create the skill.
+
+### Step 6: Save the Skill
+
+After user approval:
 
 - **Project-specific**: `.claude/skills/[skill-name]/SKILL.md`
 - **User-wide**: `~/.claude/skills/[skill-name]/SKILL.md`
@@ -120,8 +152,9 @@ When `/claudeception` is invoked:
 1. **Review** — Analyze conversation history for extractable knowledge
 2. **Identify** — List potential skills with brief justifications
 3. **Prioritize** — Focus on highest-value, most reusable knowledge
-4. **Extract** — Create skills for top candidates (typically 1-3)
-5. **Summarize** — Report what was created and why
+4. **Confirm** — Present candidates and ask which ones to create
+5. **Extract** — Create only the skills the user approved
+6. **Summarize** — Report what was created and why
 
 ## Automatic Triggers
 
