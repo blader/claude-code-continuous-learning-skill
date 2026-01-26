@@ -48,8 +48,24 @@ Extract a skill when you encounter:
 4. **Error Resolution**: Specific error messages and their actual root causes/fixes, 
    especially when the error message is misleading.
 
-5. **Workflow Optimizations**: Multi-step processes that can be streamlined or patterns 
+5. **Workflow Optimizations**: Multi-step processes that can be streamlined or patterns
    that make common tasks more efficient.
+
+## When NOT to Extract a Skill
+
+**Don't extract when:**
+- Solution is in official documentation (link to it instead)
+- One-off fix unlikely to recur
+- Standard practice well-known to developers
+- Project-specific config that belongs in CLAUDE.md
+- Mechanical constraint enforceable by code (automate it instead)
+
+**Red flags you're over-extracting:**
+- "This might be useful someday" - Extract when needed, not speculatively
+- "I'll document everything I learned" - Focus on non-obvious insights only
+- "Better to have it than not" - Skills have maintenance cost; be selective
+
+**Common mistake:** Extracting knowledge that's easily found via web search or official docs. Skills should capture what documentation DOESN'T cover well.
 
 ## Skill Quality Criteria
 
