@@ -33,6 +33,25 @@ reusable and valuable.
 
 ## When to Extract a Skill
 
+```dot
+digraph should_extract {
+    "Task completed" [shape=doublecircle];
+    "Required investigation?" [shape=diamond];
+    "Solution in docs?" [shape=diamond];
+    "Reusable pattern?" [shape=diamond];
+    "Skip extraction" [shape=box];
+    "Extract skill" [shape=box];
+
+    "Task completed" -> "Required investigation?";
+    "Required investigation?" -> "Skip extraction" [label="no, trivial"];
+    "Required investigation?" -> "Solution in docs?" [label="yes"];
+    "Solution in docs?" -> "Skip extraction" [label="yes, link instead"];
+    "Solution in docs?" -> "Reusable pattern?" [label="no"];
+    "Reusable pattern?" -> "Skip extraction" [label="no, one-off"];
+    "Reusable pattern?" -> "Extract skill" [label="yes"];
+}
+```
+
 Extract a skill when you encounter:
 
 1. **Non-obvious Solutions**: Debugging techniques, workarounds, or solutions that required 
