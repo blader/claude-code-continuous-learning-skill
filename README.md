@@ -99,7 +99,7 @@ The skill activates automatically when Claude Code:
 
 ### Explicit Mode
 
-Trigger a learning retrospective:
+Trigger a learning retrospective for the current session:
 
 ```
 /claudeception
@@ -110,6 +110,19 @@ Or explicitly request skill extraction:
 ```
 Save what we just learned as a skill
 ```
+
+### History Scanning Mode
+
+Retrospectively analyze past conversations to extract missed learnings:
+
+```
+/scan-history
+```
+
+This scans all conversation history for the current project, identifies potential learnings that weren't captured during the original sessions, and presents candidates for confirmation before creating skills.
+
+Options:
+- `--user`: Save extracted skills to `~/.claude/skills/` (user-level) instead of project-level
 
 ### What Gets Extracted
 
