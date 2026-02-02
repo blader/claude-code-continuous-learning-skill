@@ -608,3 +608,7 @@ If yes to any, invoke this skill immediately.
 
 Remember: The goal is continuous, autonomous improvement. Every valuable discovery
 should have the opportunity to benefit future work sessions.
+
+## References
+
+- [Claude Code Memory Documentation](https://code.claude.com/docs/en/memory.md) - Official guidance on CLAUDE.md, skills, and rules
