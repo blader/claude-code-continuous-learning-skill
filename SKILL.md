@@ -86,6 +86,89 @@ Extract a skill when you encounter:
 
 **Common mistake:** Extracting knowledge that's easily found via web search or official docs. Skills should capture what documentation DOESN'T cover well.
 
+## Knowledge Placement Decision
+
+**Core principle:** Skills are expensive context; CLAUDE.md is cheap. Default to instruction unless knowledge would cost hours to rediscover.
+
+Before creating a skill, evaluate placement options in order of preference:
+
+```dot
+digraph placement_decision {
+    rankdir=TB;
+
+    "Knowledge extracted" [shape=doublecircle];
+    "Would I figure this out?" [shape=diamond];
+    "Typical stack?" [shape=diamond];
+    "Simple instruction?" [shape=diamond];
+
+    "Global CLAUDE.md" [shape=box];
+    "Project CLAUDE.md" [shape=box];
+    "Global skill" [shape=box];
+    "Local skill" [shape=box];
+
+    "Knowledge extracted" -> "Would I figure this out?";
+    "Would I figure this out?" -> "Simple instruction?" [label="yes (standard pattern)"];
+    "Would I figure this out?" -> "Typical stack?" [label="no (non-obvious)"];
+
+    "Simple instruction?" -> "Global CLAUDE.md" [label="yes, applies everywhere"];
+    "Simple instruction?" -> "Project CLAUDE.md" [label="yes, project-specific"];
+    "Simple instruction?" -> "Typical stack?" [label="no, complex"];
+
+    "Typical stack?" -> "Global skill" [label="yes"];
+    "Typical stack?" -> "Local skill" [label="no (unusual framework)"];
+}
+```
+
+### Decision Questions (in order)
+
+**1. Would I figure this out eventually?**
+- **Yes** → CLAUDE.md instruction (reminder is enough)
+- **No** → Continue to skill evaluation
+
+Examples of "yes" (use CLAUDE.md):
+- Async API polling pattern (standard HTTP pattern)
+- Don't test autouse fixtures explicitly (testing principle)
+- Check for null before calling methods (basic defensive coding)
+
+Examples of "no" (needs skill):
+- NewRelic requires camelCase for header exclusions (non-obvious tool quirk)
+- PyTorch 2.6 breaks WhisperX pickle loading (version-specific gotcha)
+- Godot @onready runs before _ready() body (framework timing subtlety)
+
+**2. Is this a simple instruction (1-3 lines)?**
+- **Yes** → CLAUDE.md (global or project)
+- **No** → Skill needed
+
+Instruction format:
+```markdown
+- When building CLI tools, check if API returns 202/jobId pattern and implement polling
+- Don't write explicit tests for autouse=True fixtures; all other tests verify them implicitly
+```
+
+**3. Is this for your typical stack?**
+- **Yes** (NestJS, TS, Python, Docker, GitLab) → Global skill (`~/.claude/skills/`)
+- **No** (Godot, unusual framework) → Local skill (`.claude/skills/`)
+
+### Placement Matrix
+
+| Knowledge Type | Placement | Example |
+|----------------|-----------|---------|
+| Standard pattern reminder | Global CLAUDE.md | "Check for async API patterns" |
+| Testing/coding principle | Global CLAUDE.md | "Don't test autouse fixtures" |
+| Project preference | Project CLAUDE.md | "Use Logger not console.log" |
+| Non-obvious gotcha (typical stack) | Global skill | NewRelic camelCase |
+| Non-obvious gotcha (unusual stack) | Local skill | Godot @onready timing |
+| Version-specific fix | Global skill | PyTorch/WhisperX compatibility |
+
+### CLAUDE.md vs Skills Comparison
+
+| Aspect | CLAUDE.md | Skills |
+|--------|-----------|--------|
+| Context cost | Always loaded | Loaded on semantic match |
+| Discovery | Must be in context | Keyword/symptom matching |
+| Length | 1-3 lines ideal | Full documentation |
+| Best for | Reminders, constraints | Techniques, gotchas |
+
 ## Skill Quality Criteria
 
 Before extracting, verify the knowledge meets these criteria:
