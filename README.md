@@ -8,16 +8,22 @@ This skill fixes that. When Claude Code discovers something non-obvious (a debug
 
 ### Step 1: Clone the skill
 
-**User-level (recommended)**
+**Claude Code (User-level, recommended)**
 
 ```bash
 git clone https://github.com/blader/Claudeception.git ~/.claude/skills/claudeception
 ```
 
-**Project-level**
+**Claude Code (Project-level)**
 
 ```bash
 git clone https://github.com/blader/Claudeception.git .claude/skills/claudeception
+```
+
+**AdaL**
+
+```bash
+git clone https://github.com/blader/Claudeception.git ~/.adal/skills/claudeception
 ```
 
 ### Step 2: Set up the activation hook (recommended)
