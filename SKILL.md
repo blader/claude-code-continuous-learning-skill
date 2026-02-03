@@ -1,13 +1,10 @@
 ---
 name: claudeception
 description: |
-  Claudeception is a continuous learning system that extracts reusable knowledge from work sessions.
-  Triggers: (1) /claudeception command to review session learnings, (2) "save this as a skill"
-  or "extract a skill from this", (3) "what did we learn?", (4) After any task involving
-  non-obvious debugging, workarounds, or trial-and-error discovery. Creates new Claude Code
-  skills when valuable, reusable knowledge is identified.
-author: Claude Code
-version: 3.0.0
+  Use when: (1) /claudeception command to review session learnings, (2) user says "save this
+  as a skill" or "extract a skill from this", (3) user asks "what did we learn?", (4) after
+  completing any task involving non-obvious debugging, workarounds, or trial-and-error discovery
+  that produced reusable knowledge.
 allowed-tools:
   - Read
   - Write
@@ -18,7 +15,9 @@ allowed-tools:
   - WebFetch
   - Skill
   - AskUserQuestion
-  - TodoWrite
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
 ---
 
 # Claudeception
@@ -33,6 +32,25 @@ knowledge worth preserving. Not every task produces a skill—be selective about
 reusable and valuable.
 
 ## When to Extract a Skill
+
+```dot
+digraph should_extract {
+    "Task completed" [shape=doublecircle];
+    "Required investigation?" [shape=diamond];
+    "Solution in docs?" [shape=diamond];
+    "Reusable pattern?" [shape=diamond];
+    "Skip extraction" [shape=box];
+    "Extract skill" [shape=box];
+
+    "Task completed" -> "Required investigation?";
+    "Required investigation?" -> "Skip extraction" [label="no, trivial"];
+    "Required investigation?" -> "Solution in docs?" [label="yes"];
+    "Solution in docs?" -> "Skip extraction" [label="yes, link instead"];
+    "Solution in docs?" -> "Reusable pattern?" [label="no"];
+    "Reusable pattern?" -> "Skip extraction" [label="no, one-off"];
+    "Reusable pattern?" -> "Extract skill" [label="yes"];
+}
+```
 
 Extract a skill when you encounter:
 
@@ -49,8 +67,107 @@ Extract a skill when you encounter:
 4. **Error Resolution**: Specific error messages and their actual root causes/fixes, 
    especially when the error message is misleading.
 
-5. **Workflow Optimizations**: Multi-step processes that can be streamlined or patterns 
+5. **Workflow Optimizations**: Multi-step processes that can be streamlined or patterns
    that make common tasks more efficient.
+
+## When NOT to Extract a Skill
+
+**Don't extract when:**
+- Solution is in official documentation (link to it instead)
+- One-off fix unlikely to recur
+- Standard practice well-known to developers
+- Project-specific config that belongs in CLAUDE.md
+- Mechanical constraint enforceable by code (automate it instead)
+
+**Red flags you're over-extracting:**
+- "This might be useful someday" - Extract when needed, not speculatively
+- "I'll document everything I learned" - Focus on non-obvious insights only
+- "Better to have it than not" - Skills have maintenance cost; be selective
+
+**Common mistake:** Extracting knowledge that's easily found via web search or official docs. Skills should capture what documentation DOESN'T cover well.
+
+## Knowledge Placement Decision
+
+**Core principle:** Skills are expensive context; CLAUDE.md is cheap. Default to instruction unless knowledge would cost hours to rediscover.
+
+Before creating a skill, evaluate placement options in order of preference:
+
+```dot
+digraph placement_decision {
+    rankdir=TB;
+
+    "Knowledge extracted" [shape=doublecircle];
+    "Would I figure this out?" [shape=diamond];
+    "Typical stack?" [shape=diamond];
+    "Simple instruction?" [shape=diamond];
+
+    "Global CLAUDE.md" [shape=box];
+    "Project CLAUDE.md" [shape=box];
+    "Global skill" [shape=box];
+    "Local skill" [shape=box];
+
+    "Knowledge extracted" -> "Would I figure this out?";
+    "Would I figure this out?" -> "Simple instruction?" [label="yes (standard pattern)"];
+    "Would I figure this out?" -> "Typical stack?" [label="no (non-obvious)"];
+
+    "Simple instruction?" -> "Global CLAUDE.md" [label="yes, applies everywhere"];
+    "Simple instruction?" -> "Project CLAUDE.md" [label="yes, project-specific"];
+    "Simple instruction?" -> "Typical stack?" [label="no, complex"];
+
+    "Typical stack?" -> "Global skill" [label="yes"];
+    "Typical stack?" -> "Local skill" [label="no (unusual framework)"];
+}
+```
+
+### Decision Questions (in order)
+
+**1. Would I figure this out eventually?**
+- **Yes** → CLAUDE.md instruction (reminder is enough)
+- **No** → Continue to skill evaluation
+
+Examples of "yes" (use CLAUDE.md):
+- Async API polling pattern (standard HTTP pattern)
+- Don't test autouse fixtures explicitly (testing principle)
+- Check for null before calling methods (basic defensive coding)
+
+Examples of "no" (needs skill):
+- NewRelic requires camelCase for header exclusions (non-obvious tool quirk)
+- PyTorch 2.6 breaks WhisperX pickle loading (version-specific gotcha)
+- Godot @onready runs before _ready() body (framework timing subtlety)
+
+**2. Is this a simple instruction (1-3 lines)?**
+- **Yes** → CLAUDE.md (global or project)
+- **No** → Skill needed
+
+Instruction format:
+```markdown
+- When building CLI tools, check if API returns 202/jobId pattern and implement polling
+- Don't write explicit tests for autouse=True fixtures; all other tests verify them implicitly
+```
+
+**3. Is this for your typical stack?**
+- **Yes** (NestJS, TS, Python, Docker, GitLab) → Global skill (`~/.claude/skills/`)
+- **No** (Godot, unusual framework) → Local skill (`.claude/skills/`)
+
+### Placement Matrix
+
+| Knowledge Type | Placement | Example |
+|----------------|-----------|---------|
+| Standard pattern reminder | Global CLAUDE.md | "Check for async API patterns" |
+| Testing/coding principle | Global CLAUDE.md | "Don't test autouse fixtures" |
+| Project preference | Project CLAUDE.md | "Use Logger not console.log" |
+| Non-obvious gotcha (typical stack) | Global skill | NewRelic camelCase |
+| Non-obvious gotcha (unusual stack) | Local skill | Godot @onready timing |
+| Version-specific fix | Global skill | PyTorch/WhisperX compatibility |
+
+### CLAUDE.md vs Skills Comparison
+
+| Aspect | CLAUDE.md | Skills |
+|--------|-----------|--------|
+| Context cost | Always loaded | Loaded on semantic match |
+| Discovery | Must be in context | Keyword/symptom matching |
+| Length | 1-3 lines ideal | Full documentation |
+| Best for | Reminders, constraints | Techniques, gotchas |
 
 ## Skill Quality Criteria
 
@@ -156,42 +273,54 @@ Before creating the skill, search the web for current information when:
 
 ### Step 4: Structure the Skill
 
+**CRITICAL - CSO (Claude Search Optimization):**
+The description field determines whether Claude finds and loads your skill.
+- Start with "Use when:" to focus on triggers
+- Include specific symptoms, error messages, contexts
+- NEVER summarize what the skill does or its workflow
+- Keep under 500 characters
+
+**Why this matters:** Testing revealed that descriptions summarizing workflow cause Claude to follow the description instead of reading the full skill. A description saying "validates and creates files" caused Claude to skip the skill body entirely.
+
 Create a new skill with this structure:
 
 ```markdown
 ---
 name: [descriptive-kebab-case-name]
 description: |
-  [Precise description including: (1) exact use cases, (2) trigger conditions like 
-  specific error messages or symptoms, (3) what problem this solves. Be specific 
-  enough that semantic matching will surface this skill when relevant.]
-author: [original-author or "Claude Code"]
-version: 1.0.0
-date: [YYYY-MM-DD]
+  Use when: (1) [specific trigger condition], (2) [symptom or error message],
+  (3) [context that signals this skill applies]. Include keywords users would
+  naturally say. NEVER summarize what the skill does - only when to use it.
 ---
 
 # [Skill Name]
 
-## Problem
-[Clear description of the problem this skill addresses]
+## Overview
+What is this? Core principle in 1-2 sentences.
 
-## Context / Trigger Conditions  
-[When should this skill be used? Include exact error messages, symptoms, or scenarios]
+## When to Use
+[Bullet list with SYMPTOMS and use cases]
+
+## When NOT to Use
+[Explicit anti-patterns - when this skill does NOT apply]
 
 ## Solution
 [Step-by-step solution or knowledge to apply]
 
+## Quick Reference
+[Table or bullets for scanning common operations]
+
+## Common Mistakes
+[What goes wrong + fixes, rationalization table if discipline skill]
+
 ## Verification
 [How to verify the solution worked]
-
-## Example
-[Concrete example of applying this skill]
 
 ## Notes
 [Any caveats, edge cases, or related considerations]
 
 ## References
-[Optional: Links to official documentation, articles, or resources that informed this skill]
+[Optional: Links to official documentation or resources]
 ```
 
 ### Step 5: Write Effective Descriptions
@@ -212,15 +341,63 @@ description: |
   Turborepo, and npm workspaces.
 ```
 
-### Step 6: Save the Skill
+### Step 6: Apply CSO (Claude Search Optimization)
 
-Save new skills to the appropriate location:
+**Why CSO matters:** Claude reads skill descriptions to decide which skills to load. Poor descriptions = skills never found.
 
-- **Project-specific skills**: `.claude/skills/[skill-name]/SKILL.md`
-- **User-wide skills**: `~/.claude/skills/[skill-name]/SKILL.md`
+**The Critical Rule:**
+> Description = WHEN to use, NOT WHAT it does
 
-Include any supporting scripts in a `scripts/` subdirectory if the skill benefits from 
-executable helpers.
+**CSO Violation Examples:**
+
+| Bad (summarizes workflow) | Good (triggers only) |
+|---------------------------|----------------------|
+| "Validates tokens and handles auth errors" | "Use when auth fails with 401/403 or token expired" |
+| "Creates skills from session learnings" | "Use when task required non-obvious investigation" |
+| "Runs tests and reports coverage" | "Use when tests fail unexpectedly or coverage drops" |
+
+**Why this matters:** Testing revealed that when descriptions summarize workflow, Claude may follow the description instead of reading the full skill. The skill body becomes documentation Claude skips.
+
+**Keyword Coverage:**
+Include words Claude would search for:
+- Error messages: "ENOENT", "401 Unauthorized", "timeout"
+- Symptoms: "flaky", "hangs", "silent failure"
+- Tools/frameworks: "Next.js", "Prisma", "Jest"
+- Synonyms: "timeout/hang/freeze", "auth/authentication/login"
+
+**Token Efficiency:**
+- Keep SKILL.md under 500 lines
+- Move heavy reference material to separate files
+- Use cross-references instead of duplicating content
+
+### Step 7: Determine Placement and Save
+
+Before saving, run through the placement decision:
+
+**1. Check the decision tree (see "Knowledge Placement Decision" section above)**
+
+If placement is **CLAUDE.md**:
+- Draft the 1-3 line instruction
+- Ask: "Should this go in global `~/.claude/CLAUDE.md` or project `.claude/CLAUDE.md`?"
+- Add the instruction to the appropriate file
+
+If placement is **skill**:
+- Proceed to step 2
+
+**2. Determine skill location**
+
+For skills, choose based on your typical stack:
+
+| Stack | Location | Typical Stack Examples |
+|-------|----------|------------------------|
+| Typical | `~/.claude/skills/[name]/SKILL.md` | NestJS, TypeScript, Python, Docker, GitLab |
+| Unusual | `.claude/skills/[name]/SKILL.md` | Godot, game engines, niche frameworks |
+
+**3. Save the skill**
+
+- Create directory: `mkdir -p [location]/[skill-name]`
+- Write SKILL.md with complete template
+- Include any supporting scripts in `scripts/` subdirectory if needed
 
 ## Retrospective Mode
 
@@ -268,13 +445,33 @@ Before finalizing a skill, verify:
 - [ ] References section included if web sources were consulted
 - [ ] Current best practices (post-2025) incorporated when relevant
 
-## Anti-Patterns to Avoid
+## Common Mistakes
 
-- **Over-extraction**: Not every task deserves a skill. Mundane solutions don't need preservation.
-- **Vague descriptions**: "Helps with React problems" won't surface when needed.
-- **Unverified solutions**: Only extract what actually worked.
-- **Documentation duplication**: Don't recreate official docs; link to them and add what's missing.
-- **Stale knowledge**: Mark skills with versions and dates; knowledge can become outdated.
+### Mistake 1: Over-extraction
+**Problem:** Extracting every solution, creating maintenance burden
+**Fix:** Apply quality gates strictly - reusable AND non-trivial AND verified
+
+### Mistake 2: Vague descriptions
+**Problem:** "Helps with React problems" won't surface when needed
+**Fix:** Include specific triggers, error messages, symptoms
+
+### Mistake 3: Workflow summaries in description
+**Problem:** Claude follows description instead of reading skill body
+**Fix:** Description contains ONLY trigger conditions, never workflow
+
+### Mistake 4: Unsupported frontmatter fields
+**Problem:** Adding author/version/date fields that Claude ignores
+**Fix:** Only use `name`, `description`, and supported fields like `allowed-tools`
+
+### Rationalization Table
+
+| Excuse | Reality |
+|--------|---------|
+| "Better to have it documented" | Skills have maintenance cost. Be selective. |
+| "This might be useful someday" | Extract when needed, not speculatively. |
+| "I'll be thorough and add all fields" | Extra fields are ignored. Follow spec exactly. |
+| "Description should explain what it does" | Description is for discovery, not documentation. |
+| "Official docs are too long to read" | Skills complement docs, don't replace them. |
 
 ## Skill Lifecycle
 
@@ -310,13 +507,9 @@ Search: "Next.js getServerSideProps error handling best practices 2026"
 ---
 name: nextjs-server-side-error-debugging
 description: |
-  Debug getServerSideProps and getStaticProps errors in Next.js. Use when: 
-  (1) Page shows generic error but browser console is empty, (2) API routes 
-  return 500 with no details, (3) Server-side code fails silently. Check 
-  terminal/server logs instead of browser for actual error messages.
-author: Claude Code
-version: 1.0.0
-date: 2024-01-15
+  Use when: (1) Next.js page shows generic error but browser console is empty,
+  (2) API routes return 500 with no details, (3) server-side code fails silently.
+  Symptoms: getServerSideProps errors not visible, empty console with error page.
 ---
 
 # Next.js Server-Side Error Debugging
@@ -331,12 +524,21 @@ debugging frustrating when you're looking in the wrong place.
 - Using getServerSideProps, getStaticProps, or API routes
 - Error only occurs on navigation/refresh, not on client-side transitions
 
+## When NOT to Use
+- Client-side React errors (these DO show in browser console)
+- Build-time errors (these show in terminal during `next build`)
+- TypeScript errors (these show in IDE and terminal)
+
 ## Solution
 1. Check the terminal where `npm run dev` is running—errors appear there
 2. For production, check server logs (Vercel dashboard, CloudWatch, etc.)
 3. Add try-catch with console.error in server-side functions for clarity
-4. Use Next.js error handling: return `{ notFound: true }` or `{ redirect: {...} }` 
+4. Use Next.js error handling: return `{ notFound: true }` or `{ redirect: {...} }`
    instead of throwing
+
+## Common Mistakes
+**Mistake:** Adding console.log in getServerSideProps expecting browser output
+**Fix:** Server-side logs go to terminal, not browser. Use terminal or server logs.
 
 ## Verification
 After checking terminal, you should see the actual stack trace with file 
@@ -385,5 +587,28 @@ After completing any significant task, ask yourself:
 
 If yes to any, invoke this skill immediately.
 
+## Testing Verification
+
+**Approach:** Scenario-based testing with subagents
+
+**Test scenarios run:**
+1. **Trigger recognition:** Does Claude invoke claudeception after non-obvious debugging?
+2. **Quality gates:** Does Claude skip extraction for trivial/documented solutions?
+3. **Template compliance:** Do extracted skills follow the correct template?
+4. **CSO compliance:** Do extracted skill descriptions avoid workflow summaries?
+
+**Evidence:**
+- Tested with verify-technical-claims skill creation (2026-01-26)
+- Identified frontmatter violations, CSO issues, missing sections
+- Fixes informed by case study analysis
+
+**Ongoing validation:**
+- Each skill created by claudeception should be reviewed against checklist
+- Quality Gates section provides self-check criteria
+
 Remember: The goal is continuous, autonomous improvement. Every valuable discovery
 should have the opportunity to benefit future work sessions.
+
+## References
+
+- [Claude Code Memory Documentation](https://code.claude.com/docs/en/memory.md) - Official guidance on CLAUDE.md, skills, and rules
